@@ -1,0 +1,34 @@
+apiVersion: config.kubernetes.io/v1
+kind: ResourceList
+metadata:
+  name: krm-function-input
+functionConfig:
+  kind: KubeconformValidator
+  metadata:
+    name: validate
+  spec:
+    args:
+    - -strict
+    - -output
+    - json
+items:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: service-invalid
+  spec:
+    type: ClusterIP
+    ports:
+    - protocol: TCP
+      port: 8666s
+      targetPort: 8080
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: service-valid
+  spec:
+    type: ClusterIP
+    ports:
+    - protocol: TCP
+      port: 8666
+      targetPort: 8080

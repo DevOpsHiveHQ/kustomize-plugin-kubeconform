@@ -1,0 +1,10 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: service-invalid
+spec:
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 8666s
+    targetPort: 8080

@@ -2,16 +2,15 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"strings"
 
-	"github.com/GoogleContainerTools/kpt-functions-sdk/go/fn"
 	"github.com/yannh/kubeconform/cmd/kubeconform/validate"
 	"github.com/yannh/kubeconform/pkg/config"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/kustomize/kyaml/fn/framework"
+	"sigs.k8s.io/kustomize/kyaml/kio"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 type KubeconformValidator struct {
@@ -24,53 +23,54 @@ type KubeconformValidator struct {
 	}
 }
 
-func (kv *KubeconformValidator) Load(manifest string) {
-	// Get KubeconformValidator manifest.
-	err := yaml.Unmarshal([]byte(manifest), &kv)
-	if err != nil {
-		log.Fatal("YAML Unmarshal: ", err)
-	}
-
-	// Check if the manifest uses the KubeconformValidator plugin uses the correct kind.
-	if kv.Kind != "KubeconformValidator" {
-		log.Fatal("Resource kind: The manifest should use \"KubeconformValidator\" kind")
-	}
+type Kubeconform struct {
+	Input  *io.PipeReader
+	Output bytes.Buffer
 }
 
-func getResourceList(input *os.File) *fn.ResourceList {
-	// Read stdin.
-	stdin, err := io.ReadAll(input)
-	if err != nil {
-		log.Fatal(err)
+// LoadResourceListItems is a link between Kustomize KRM input and Kubeconform input.
+func (kv *Kubeconform) LoadResourceListItems(rlItems []*yaml.RNode) {
+	var tmpWriter *io.PipeWriter
+	kv.Input, tmpWriter = io.Pipe()
+	go func() {
+		defer tmpWriter.Close()
+		err := (&kio.ByteWriter{Writer: tmpWriter}).Write(rlItems)
+		if err != nil {
+			log.Fatalf("failed to load ResourceList items: %s\n", err.Error())
+		}
+	}()
+}
+
+func runKubeconform(rlSource *kio.ByteReadWriter) error {
+	kcv := &KubeconformValidator{}
+	kc := &Kubeconform{}
+
+	fn := func(rlItems []*yaml.RNode) ([]*yaml.RNode, error) {
+		cfg, out, err := config.FromFlags(os.Args[0], kcv.Spec.Args)
+		if err != nil {
+			log.Fatalf("failed to parse args: %s\n", err.Error())
+		}
+
+		kc.LoadResourceListItems(rlItems)
+
+		// Configure input and output of Kubeconform.
+		cfg.Stream = &config.Stream{
+			Input:  kc.Input,
+			Output: &kc.Output,
+		}
+		if exitCode := validate.Run(cfg, out); exitCode != 0 {
+			log.Fatalf("validation output: %s", kc.Output.String())
+		}
+
+		return rlItems, nil
 	}
 
-	// Check if the stdin input is ResourceList.
-	rl, err := fn.ParseResourceList(stdin)
-	if err != nil {
-		log.Println(err)
-		log.Fatal("ParseResourceList: The input should be a single file of kind \"ResourceList\"")
-	}
-
-	return rl
+	process := framework.SimpleProcessor{Config: kcv, Filter: kio.FilterFunc(fn)}
+	err := framework.Execute(process, rlSource)
+	return err
 }
 
 func main() {
-	var output bytes.Buffer
-	krmInput := getResourceList(os.Stdin)
-	kvManifest := &KubeconformValidator{}
-
-	cfg, out, err := config.FromFlags(os.Args[0], kvManifest.Spec.Args)
-	if err != nil {
-		log.Fatalf("failed parsing command line: %s\n", err.Error())
-	}
-	cfg.Stream.Input = strings.NewReader(krmInput.Items.String())
-	cfg.Stream.Output = &output
-	exitCode := validate.Run(cfg, out)
-
-	log.Fatalf("%d - %s", exitCode, output.String())
-
-	if exitCode != 0 {
-		os.Exit(exitCode)
-	}
-	fmt.Println(krmInput.Items.String())
+	byteReadWriter := &kio.ByteReadWriter{}
+	runKubeconform(byteReadWriter)
 }

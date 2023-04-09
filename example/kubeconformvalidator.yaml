@@ -12,8 +12,8 @@ metadata:
       exec:
        path: ../dist/kubeconformvalidator
 spec:
-  args: []
-  # - -debug
+  args:
+  - -debug
   # - -insecure-skip-tls-verify
-  # - -output
-  # - json
+  - -output
+  - json

@@ -1,9 +1,10 @@
-module github.com/aabouzaid/kustomize-validator-kubeconform
+module github.com/aabouzaid/kustomize-kubeconformvalidator
 
 go 1.18
 
 require (
 	github.com/yannh/kubeconform v0.0.0-00010101000000-000000000000
+	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661
 	sigs.k8s.io/kustomize/kyaml v0.13.7-0.20220418212550-9d5491c2e20c
 )
 
@@ -36,7 +37,6 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

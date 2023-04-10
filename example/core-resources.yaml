@@ -1,10 +1,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: service-invalid
+  name: invalid-core-resource
 spec:
   type: ClusterIP
   ports:
   - protocol: TCP
-    port: 8666s
+    # Remove the extra string to fix the validation issue.
+    port: 8666zzzz
     targetPort: 8080

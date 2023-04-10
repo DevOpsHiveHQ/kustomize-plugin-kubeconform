@@ -1,0 +1,12 @@
+# This kind is ignored, but it also could be supported via Kubeconform arg "-schema-location".
+# For more details check:
+# https://github.com/yannh/kubeconform#Overriding-schemas-location
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: ignored-custom-resource
+spec:
+  receivers:
+  - name: webhook
+    webhookConfigs:
+    - url: http://example.com/

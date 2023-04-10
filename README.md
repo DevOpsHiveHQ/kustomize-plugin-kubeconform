@@ -7,13 +7,13 @@ Note: This is still a playground.
 
 **Build:**
 ```sh
-go build  -o "dist/kubeconformvalidator" .
+go build -o 'dist/kubeconformvalidator' .
 ```
 
 **Example:**
 ```yaml
 kind: KubeconformValidator
-apiVersion: v1alpha
+apiVersion: kubeconformvalidator.aabouzaid.com/v1alpha1
 metadata:
   name: validate
   annotations:
@@ -21,14 +21,19 @@ metadata:
       exec:
         path: ./dist/kubeconformvalidator
 spec:
+  # Kubeconform args:
+  # https://github.com/yannh/kubeconform#Usage
   args:
   - -verbose
-  - -n
-  - 5
+  - -output
+  - json
 ```
 
 **Try:**
 ```sh
 # Make sure to build bin first.
-kustomize build --enable-alpha-plugins ./example
+kustomize build --enable-alpha-plugins --enable-exec ./example
 ```
+
+## TODO
+- Add native support for Kubeconform options (instead of passing everything as CLI args).

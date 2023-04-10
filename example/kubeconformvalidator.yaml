@@ -1,19 +1,22 @@
 kind: KubeconformValidator
-apiVersion: v1alpha
+apiVersion: kubeconformvalidator.aabouzaid.com/v1alpha1
 metadata:
   name: validate
   annotations:
     config.kubernetes.io/function: |
+      # Exec KRM functions.
+      exec:
+       path: ../dist/kubeconformvalidator
+
       # # Containerized KRM functions.
       # container:
       #   image: aabouzaid/kubeconformvalidator
       #   network: true
-      # Exec KRM functions.
-      exec:
-       path: ../dist/kubeconformvalidator
 spec:
+  # Kubeconform args:
+  # https://github.com/yannh/kubeconform#Usage
   args:
-  - -debug
-  # - -insecure-skip-tls-verify
   - -output
   - json
+  - -skip
+  - 'AlertmanagerConfig'

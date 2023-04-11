@@ -13,8 +13,8 @@ go build -o 'dist/kubeconformvalidator' .
 
 ## Example
 ```yaml
+apiVersion: validators.kustomize.aabouzaid.com/v1alpha1
 kind: KubeconformValidator
-apiVersion: kubeconformvalidator.aabouzaid.com/v1alpha1
 metadata:
   name: validate
   annotations:

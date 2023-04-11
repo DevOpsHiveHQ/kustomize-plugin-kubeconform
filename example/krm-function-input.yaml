@@ -4,7 +4,7 @@ metadata:
   name: krm-function-input
 functionConfig:
   kind: KubeconformValidator
-  apiVersion: kubeconformvalidator.aabouzaid.com/v1alpha1
+  apiVersion: validators.kustomize.aabouzaid.com/v1alpha1
   metadata:
     name: validate
   spec:

@@ -3,7 +3,7 @@ kind: KRMFunctionDefinition
 metadata:
   name: kubeconformvalidator
 spec:
-  group: kubeconformvalidator.aabouzaid.com
+  group: validators.kustomize.aabouzaid.com
   names:
     kind: KubeconformValidator
   versions:

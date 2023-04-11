@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"io"
 	"log"
 	"os"
 
+	"github.com/imdario/mergo"
 	"github.com/yannh/kubeconform/cmd/kubeconform"
 	"github.com/yannh/kubeconform/pkg/config"
 	"k8s.io/kube-openapi/pkg/validation/spec"
@@ -22,51 +24,20 @@ type Kubeconform struct {
 }
 
 type KubeconformValidator struct {
-	Kind     string `yaml:"kind"`
+	Kind     string `yaml:"kind" json:"kind"`
 	Metadata struct {
-		Name string `yaml:"name"`
+		Name string `yaml:"name" json:"name"`
 	}
-	Spec kubeconformValidatorSpec
+	Spec kubeconformValidatorSpec `yaml:"spec" json:"spec"`
 }
 
 type kubeconformValidatorSpec struct {
-	Args []string `yaml:"args" json:"args"`
-	// TODO: Add a native support for Kubeconform args.
+	Args   []string      `yaml:"args" json:"args"`
+	Config config.Config `yaml:"config" json:"config"`
 }
 
-var kubeconformValidatorDefinition = `
-apiVersion: config.kubernetes.io/v1alpha1
-kind: KRMFunctionDefinition
-metadata:
-  name: kubeconformvalidator
-spec:
-  group: kubeconformvalidator.aabouzaid.com
-  names:
-    kind: KubeconformValidator
-  versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            type: string
-          kind:
-            type: string
-          metadata:
-            type: object
-            properties:
-              name:
-                type: string
-                minLength: 1
-            required:
-            - name
-          spec:
-            properties:
-              args:
-                type: array
-            type: object
-        type: object
-`
+//go:embed plugin-schema.yaml
+var kubeconformValidatorDefinition string
 
 func (kcv *KubeconformValidator) Schema() (*spec.Schema, error) {
 	schema, err := framework.SchemaFromFunctionDefinition(
@@ -75,38 +46,51 @@ func (kcv *KubeconformValidator) Schema() (*spec.Schema, error) {
 	return schema, errors.WrapPrefixf(err, "failed to parse KubeconformValidator schema")
 }
 
-// TODO: Implement Validate and Default methods.
-// func (kcv *KubeconformValidator) Validate() error {
-// 	return nil
-// }
+func (kcv *KubeconformValidator) Validate() error {
+	// At the moment this only validates KubeconformValidator manifest against its openAPIV3Schema.
+	return nil
+}
+
+// TODO: Implement Default methods if needed.
 // func (kcv *KubeconformValidator) Default() error {
 // 	return nil
 // }
 
 // LoadResourceListItems links between Kustomize KRM input and Kubeconform input.
 // TODO: Review the current approach to find out if there is a better solution.
-func (kc *Kubeconform) LoadResourceListItems(rlItems []*yaml.RNode) {
+func (kc *Kubeconform) loadResourceListItems(rlItems []*yaml.RNode) {
 	var tmpWriter *io.PipeWriter
 	kc.Input, tmpWriter = io.Pipe()
 	go func() {
 		defer tmpWriter.Close()
 		err := (&kio.ByteWriter{Writer: tmpWriter}).Write(rlItems)
 		if err != nil {
-			log.Fatalf("failed to load ResourceList items: %s\n", err.Error())
+			log.Fatal("failed to load ResourceList items: ", err)
 		}
 	}()
 }
 
-func (kcv *KubeconformValidator) Filter(rlItems []*yaml.RNode) ([]*yaml.RNode, error) {
-	kc := &Kubeconform{}
+func (kcv *KubeconformValidator) configure() (config.Config, string) {
 	cfg, out, err := config.FromFlags(os.Args[0], kcv.Spec.Args)
 	if err != nil {
-		log.Fatalf("failed to parse args: %s\n", err.Error())
+		log.Fatal("failed to parse args: ", err)
 	}
 
-	kc.LoadResourceListItems(rlItems)
+	// Override config using KubeconformValidator spec.config.
+	// That means "spec.config" has a priority over "spec.args".
+	if err := mergo.Merge(&cfg, kcv.Spec.Config, mergo.WithOverride); err != nil {
+		log.Fatal("failed to merge config: ", err)
+	}
 
-	// Configure input and output of Kubeconform.
+	return cfg, out
+}
+
+func (kcv *KubeconformValidator) Filter(rlItems []*yaml.RNode) ([]*yaml.RNode, error) {
+	kc := &Kubeconform{}
+	kc.loadResourceListItems(rlItems)
+
+	// Configure Kubeconform.
+	cfg, out := kcv.configure()
 	cfg.Stream = &config.Stream{
 		Input:  kc.Input,
 		Output: &kc.Output,
@@ -114,7 +98,7 @@ func (kcv *KubeconformValidator) Filter(rlItems []*yaml.RNode) ([]*yaml.RNode, e
 
 	// Run Kubeconform validate.
 	if exitCode := kubeconform.Validate(cfg, out); exitCode != 0 {
-		log.Fatalf("validation output: %s", kc.Output.String())
+		return nil, errors.Wrap(errors.Errorf("Kubeconform validation output: %s", kc.Output.String()))
 	}
 
 	return rlItems, nil

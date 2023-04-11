@@ -1,0 +1,70 @@
+apiVersion: config.kubernetes.io/v1alpha1
+kind: KRMFunctionDefinition
+metadata:
+  name: kubeconformvalidator
+spec:
+  group: kubeconformvalidator.aabouzaid.com
+  names:
+    kind: KubeconformValidator
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+            properties:
+              name:
+                type: string
+                minLength: 1
+            required:
+            - name
+          spec:
+            properties:
+              args:
+                type: array
+                items:
+                  type: string
+              config:
+                properties:
+                  cache:
+                    type: string
+                  debug:
+                    type: bool
+                  exitOnError:
+                    type: bool
+                  ignoreMissingSchemas:
+                    type: bool
+                  insecureSkipTLSVerify:
+                    type: bool
+                  kubernetesVersion:
+                    type: string
+                  numberOfWorkers:
+                    type: integer
+                  output:
+                    type: string
+                  reject:
+                    items:
+                      type: string
+                    type: array
+                  schemaLocations:
+                    items:
+                      type: string
+                    type: array
+                  skip:
+                    items:
+                      type: string
+                    type: array
+                  strict:
+                    type: bool
+                  summary:
+                    type: bool
+                  verbose:
+                    type: bool
+                type: object
+            type: object
+        type: object

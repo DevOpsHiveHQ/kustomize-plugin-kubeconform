@@ -13,10 +13,15 @@ metadata:
       #   image: aabouzaid/kubeconformvalidator
       #   network: true
 spec:
-  # Kubeconform args:
+  # Configure Kubeconform.
+  config:
+    output: json
+    skip:
+    - AlertmanagerConfig
+  # Also, direct Kubeconform args could be used but it has lower priority over "spec.config".
   # https://github.com/yannh/kubeconform#Usage
-  args:
-  - -output
-  - json
-  - -skip
-  - 'AlertmanagerConfig'
+  # args:
+  # - -output
+  # - json
+  # - -skip
+  # - AlertmanagerConfig

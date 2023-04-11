@@ -3,6 +3,7 @@ module github.com/aabouzaid/kustomize-kubeconformvalidator
 go 1.18
 
 require (
+	github.com/imdario/mergo v0.3.15
 	github.com/yannh/kubeconform v0.0.0-00010101000000-000000000000
 	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661
 	sigs.k8s.io/kustomize/kyaml v0.13.7-0.20220418212550-9d5491c2e20c

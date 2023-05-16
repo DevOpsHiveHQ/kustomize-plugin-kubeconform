@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/kustomize/kyaml/kio"
 	"sigs.k8s.io/kustomize/kyaml/resid"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
+	yamltojson "sigs.k8s.io/yaml"
 )
 
 //
@@ -96,9 +97,11 @@ func (kcv *KubeconformValidator) Filter(rlItems []*yaml.RNode) ([]*yaml.RNode, e
 	kc.loadResourceListItems(rlItems)
 	cfg, out := kc.configure(&kcv.Spec)
 
-	// Run Kubeconform validate.
+	// Run Kubeconform validate
+	// and convert kc.IO stream to YAML.
 	if err := kubeconform.Validate(cfg, out); err != nil {
-		return nil, errors.Wrap(errors.Errorf("Kubeconform validation output: %s", kc.IO))
+		outYAML, _ := yamltojson.JSONToYAML(kc.IO.(*bytes.Buffer).Bytes())
+		return nil, errors.WrapPrefixf(err, "Kubeconform validation failed: %s", string(outYAML))
 	}
 
 	return rlItems, nil

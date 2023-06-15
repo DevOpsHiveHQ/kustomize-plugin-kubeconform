@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -91,16 +93,65 @@ func (kcv *KubeconformValidator) Validate() error {
 // 	return nil
 // }
 
+// write Filter fun to validate resource list items and in case if error,
+// read the kc.IO json output and map it to results in framework.Results
 func (kcv *KubeconformValidator) Filter(rlItems []*yaml.RNode) ([]*yaml.RNode, error) {
 	kc := &Kubeconform{IO: &bytes.Buffer{}}
 	kc.loadResourceListItems(rlItems)
 	cfg, out := kc.configure(&kcv.Spec)
 
-	// Run Kubeconform validate.
-	if err := kubeconform.Validate(cfg, out); err != nil {
-		return nil, errors.Wrap(errors.Errorf("Kubeconform validation output: %s", kc.IO))
+	type validationError struct {
+		Path string `json:"path"`
+		Msg  string `json:"msg"`
 	}
 
+	type resource struct {
+		Filename         string            `json:"filename"`
+		Kind             string            `json:"kind"`
+		Name             string            `json:"name"`
+		Version          string            `json:"version"`
+		Status           string            `json:"status"`
+		Msg              string            `json:"msg"`
+		ValidationErrors []validationError `json:"validationErrors"`
+	}
+
+	type ValidationOutput struct {
+		Resources []resource `json:"resources"`
+	}
+
+	if err := kubeconform.Validate(cfg, out); err != nil {
+
+		// read kc.IO stream and covert it to string
+		kcIO, _ := ioutil.ReadAll(kc.IO)
+		// unmarshal kcIO json output to ValidationOutput struct
+		var vo ValidationOutput
+		if err := json.Unmarshal(kcIO, &vo); err != nil {
+			return nil, errors.WrapPrefixf(err, "failed to unmarshal kc.IO json output")
+		}
+		var validationResults framework.Results
+		for _, resource := range vo.Resources {
+			for errIndex, _ := range resource.ValidationErrors {
+
+				validationResults = append(validationResults, &framework.Result{
+					Message:  resource.ValidationErrors[0].Msg,
+					Severity: "error",
+					ResourceRef: &yaml.ResourceIdentifier{
+						TypeMeta: yaml.TypeMeta{
+							Kind: resource.Kind,
+						},
+						NameMeta: yaml.NameMeta{
+							Name: resource.Name,
+						},
+					},
+					Field: &framework.Field{
+						Path:          resource.ValidationErrors[errIndex].Path,
+						ProposedValue: 1,
+					},
+				})
+			}
+		}
+		return nil, validationResults
+	}
 	return rlItems, nil
 }
 

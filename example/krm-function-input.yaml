@@ -28,6 +28,16 @@ items:
 - kind: Service
   apiVersion: v1
   metadata:
+    name: service2-invalid
+  spec:
+    type: ClusterIP
+    ports:
+    - protocol: TCP
+      port: 8666x
+      targetPort: 8080
+- kind: Service
+  apiVersion: v1
+  metadata:
     name: service-valid
   spec:
     type: ClusterIP
